@@ -1,0 +1,215 @@
+\documentclass[12pt]{article}
+\usepackage{amsmath}
+\DeclareMathOperator*{\argmin}{argmin}
+\usepackage{bm}
+\usepackage{amssymb}
+\usepackage{graphicx,psfrag,epsf}
+\usepackage{enumerate}
+\usepackage{natbib}
+
+\newcommand{\blind}{0}
+
+\addtolength{\oddsidemargin}{-.75in}%
+\addtolength{\evensidemargin}{-.75in}%
+\addtolength{\textwidth}{1.5in}%
+\addtolength{\textheight}{1.3in}%
+\addtolength{\topmargin}{-.8in}%
+
+\begin{document}
+ 
+
+\bibliographystyle{unsrtnat}
+\setcitestyle{round}
+
+\def\spacingset#1{\renewcommand{\baselinestretch}%
+{#1}\small\normalsize} \spacingset{1}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\if0\blind
+{
+  \title{\bf Genomic Meta-Feature Guided Regularized Regression for Survival Outcome}
+  \author{Dixin Shen \\
+    Division of Biostatistics, University of Southern California\\
+    and \\
+    Juan Pablo Lewinger \\
+    Division of Biostatistics, University of Southern California}
+  \maketitle
+} \fi
+
+\if1\blind
+{
+  \bigskip
+  \bigskip
+  \bigskip
+  \begin{center}
+    {\LARGE\bf Title}
+\end{center}
+  \medskip
+} \fi
+
+\bigskip
+\begin{abstract}
+In building predictive models for genomic studies, regularized regression is a common technique as the number of genomic features is much larger than the number of samples. The application of sparse regularized regression performs feature selection while doing prediction. Associated with genomic features, such as gene expression, genetic variation, DNA methylation, there are plenty of meta-features. Some examples are functional gene sets, gene ontology annotations, knowledge of past studies. The canonical way is to modeling genomic features on phenotypic outcomes, and post hoc analysis with meta-features, like gene set enrichment analysis. However, incorporating meta-features into modeling process can potentially improve the quality of both prediction performance and feature selection. 
+
+In this paper, we extend the approach of \cite{10.1093/bioinformatics/btaa776} to survival outcome. The method incorporates genomic meta-features to guide the regularized Cox regression, so that each of the genomic features has its own customized penalty parameter, as opposed to one common penalty parameter for all features. With highly informative meta-features, significant features become more important/being penalized less, unrelated features become less important/heavily penalized, thereby achieving improved feature selection. The general purpose of prediction performance is also improved with the extra information. We show the benefits of the method by simulations and applications in genetic studies. Model optimization algorithm involves Laplace approximation of the likelihood function, and a majorization-minimization procedure. 
+\end{abstract}
+
+\noindent%
+
+
+
+\spacingset{1.45}
+\section{Introduction}
+\label{sec:intro}
+Predicting a phenotypic outcome based on genomic features is a highly active research area, with the increasing need in personalized health care to achieve the most possible benefits out of a medical intervention for a particular patient. A common technique for genomic predictive modeling is regularized regression. As the number of genomic features is typically large, thousands to millions, linear models like regression are better suited, since the data pattern is most likely linear where each feature contribute a little or none effect to the outcome. When number of features is larger than the number of samples, which is usually the case for genomics study, regularization needs to be introduced so that the model can be fit. Sparse regularized regression is a popular choice, as it not only shrinks the regression coefficients to make the model simpler, it also shrink some of the coefficients with little effects on the outcome to exactly zero, thereby performing feature selection. Typical examples are the lasso \citep{tibshirani1996regression} and the elastic net \citep{zou2005regularization}. While they have similar mechanics, there is a major difference. If some of the features among which the correlations with each other are high, the lasso tends to select one of them, while the elastic net tends to select most of them and share the lasso value equally. Ridge regression \citep{hoerl1970ridge} is another regularization technique to cope with high dimension and collinearity of data. However, it shrinks the coefficients but not to zero, hence does not produce interpretable model. 
+
+Genomic features may have their own characteristics: grouping effect and ordering. Extensions of the lasso deal with such situations. The group lasso \citep{yuan2006model} takes in the grouping information, shrinking coefficients by group. All the coefficients in one group are either zero or nonzero. Sparse group lasso \citep{simon2013sparse} further allows sparsity within group. The fused lasso deals with the ordering situation, with the addition of $L_1$ terms for the differences of neighbouring coefficients, which allows sparsity in the their differences. The above extended regularization methods take into account characteristics of features, which are essentially features of the features if they are put in a data set. We call these extra characteristics of features meta-features here and after. There are plenty of such meta-features in genomics. For example, functional gene sets like hallmark \citep{liberzon2015molecular}, gene ontology pathways like reactome \citep{jassal2020reactome} work as grouping effects; summary statistics like p-values and regression coefficients from meta-analyses work as ordering effect (p-values and regression coefficients indicate the importance of each feature). The meta-features are actual data matrices, where the samples/rows represent original features, and the columns represent meta-features. However, none of the above regularization approaches systematically utilize the meta-feature information. The group lasso assumes features are in different groups mutually exclusive. Features in multiple groups at the same time does not meet the assumption. The fused lasso takes the ordering of the features into account, but when provided with concrete information like p-values indicating exactly how important each feature are, it cannot incorporate such information. 
+
+One way of utilizing the meta-features is modeling with original features, and performing gene set enrichment analysis \citep{subramanian2005gene} in hindsight. However, incorporating meta-features into modeling process can potentially improve both prediction performance and the quality of feature selection. Weaver et al. (reference) and Shen et al. (reference) incorporate the meta-features in a hierarchical modeling setup. The outcomes are regressed on original features, assuming quantitative outcome, 
+$$ \bm{Y} = \bm{X\beta} + \bm{\varepsilon} $$ 
+where $\bm{Y}$ is the length $n$ outcome vector, $\bm{X}$ is the $n \times p$ data matrix, $\bm{\beta}$ is the length $p$ feature coefficient vector to be estimated in the model. Then the feature coefficients $\bm{\beta}$ are regressed on meta-features,
+$$ \bm{\beta} = \bm{Z\alpha} + \bm{\gamma} $$
+where $\bm{Z}$ is the $p \times q$ meta-feature matrix, $\bm{\alpha}$ is coefficients vector for meta-features. To integrate both level of features into modeling process, an objective function is formed as below 
+$$ \min_{\bm{\beta, \alpha}} \frac{1}{2n} \|\bm{Y}-\bm{X \beta} \|_2^2 + \frac{\lambda_1}{2} \|\bm{\beta} - \bm{Z \alpha} \|_2^2 + \lambda_2 \|\bm{\alpha}\|_1 $$
+The original feature data $\bm{X}$ and meta-feature data $\bm{Z}$ are fitted through two least squares above. The additional $L_1$ term of meta-feature coefficients $\bm{\alpha}$ is to control model complexity and meta-feature selection. This integration method incorporates meta-features linearly, emphasizing on meta-feature selection. It was shown to improve the prediction performance considerably with high quality meta-features. \cite{10.1093/bioinformatics/btaa776} developed another method for integrating meta-features $\bm{Z}$ for quantitative and binary outcomes, in a non-linear way, such that each of the original features has its own customized penalty parameter, as opposed to one common penalty parameter for all features. The customized penalty parameters potentially allow more accurate feature selection. In this paper, we extend this approach to survival outcomes. 
+
+\section{Methods}
+\label{sec:meth}
+\subsection{Model setup and notations}
+Starting with the survival model setup, let the outcome data be $(\bm{y, \delta})$ where $\bm{y}=(y_1,y_2,\dots,y_n)$ is observed time, $\delta=(\delta_1,\delta_2,\dots,\delta_2)$ is censoring status. If $\delta_i = 1 (i=1,2,\dots,n)$, event happened, $y_i$ is event time; if $\delta_i=0$, event did not happen in experimental period, $y_i$ is censoring time. There are $p$ features for the n instances/samples, data matrix $\bm{X}$ with dimension $n\times p$ stores the feature values, i.e., $\bm{x}_i$ is a vector of feature values for instance $i$ $(x_{i1},x_{i2},\dots,x_{ip})$. Associated with the features, there are q meta-features. A $p\times q$ matrix $\bm{Z}$ stores the meta-feature values for the $p$ original features, i.e., $\bm{z}_j (j=1,2,\dots,p)$ is a vector of meta-feature values for feature $j$ $(z_{j1},z_{j2},\dots,z_{jq})$. The common choice of regression method is Cox's proportional hazards model \citep{cox1972regression}. It assumes hazard functions are proportional at the same time point, which allows model fitting without knowing explicit form of baseline hazard function, and only depends on the order in which events occur, not on the exact time of occurrence. To illustrate, let $t_1<t_2<\dots<t_l<\dots<t_m$ be the the unique event times arranged in increasing order, and $D_l=\{i:\delta_i=1,y_i=t_l\}$ is the set of instances experienced event at time $t_l$. Let $\bm{\beta}$ be a length $p$ vector for the regression coefficients for features. The partial likelihood function, $L(\bm{\beta})$, takes the form 
+\begin{displaymath}
+L(\bm{\beta}) = \prod_{l=1}^{m} \frac{e^{\sum_{i\in D_l}\bm{x}_i^T\bm{\beta}}}{(\sum_{i\in R_l} e^{\bm{x}_i^T\bm{\beta}})^{d_l}}
+\end{displaymath}
+where $R_l=\{i: y_i\geq t_l\}$ is the risk set at event time $t_l$, i.e., the set of all instances who have not experienced the event and are uncensored just prior to time $t_l$; $d_l=|D_l|$ is the number of events at time $t_l$. $L(\bm{\beta})$ is Breslow's adjustment of partial likelihood \citep{breslow1972contribution}. It deals with ties in each event time ($d_l>1$: more than one instance experienced event at a particular event time). When there are no ties ($d_l=1$), $L(\bm{\beta})$ automatically reduces to Cox's partial likelihood. We can see that neither hazard functions nor times are involved in the function, only the order of event times matters. 
+
+We add regularization to Cox regression to control model complexity. Denote the log of partial likelihood as $\ell(\bm{\beta})$,
+\begin{equation} \label{eq1}
+    \min_{\bm{\beta}\in \mathbb{R}^p} \left\{-\ell(\bm{\beta}) + \lambda\left[\frac{1}{2}(1-c)\|\gm{\beta}\|_2^2 + c\|\bm{\beta}\|_1\right]\right\}.
+\end{equation}
+The regularization function covers lasso, elastic net, ridge penalties, i.e., $c=1$ represents the lasso, $c=0$ represents ridge, and $0<c<1$ represents the elastic net. When $0<c\leq1$, it is sparse regularization which shrink some coefficients to exactly zero, producing interpretale model. The regularization has a universal penalty parameter $\lambda$ for all the features. This ignores underlying characteristics of features assuming each of them are equally important by applying the same amount of penalty. Our idea is to incorporate informative meta-features which might indicate the importance of the original features, giving each of them a unique penalty parameter $\lambda_j$. To incorporate meta-features to $\lambda_j$, first form a linear combination of $\bm{z_j}$ for feature $j$, $\bm{\alpha}$ is the weight vector of length $q$; then give it a non-linear function by expenentiating it
+\begin{equation} \label{eq2}
+\begin{aligned}
+    &\min_{\bm{\beta}\in \mathbb{R}^p} \left\{-\ell(\bm{\beta}) + \sum_{j=1}^p \lambda_j\left[\frac{1}{2}(1-c)\beta_j^2 + c|\beta_j|\right]\right\}, \\
+    &\lambda_j = e^{\bm{z_j}^T \bm{\alpha}}.
+\end{aligned}
+\end{equation}
+
+\subsection{Model fitting}
+The standard regularized Cox proportional hazards model, equation \eqref{eq1}, is fitted with pathwise coordinate descent \citep{simon2011regularization}. As the universal penalty parameter $\lambda$ is a hyper-parameter, the algorithm constructs a $\lambda$ path to tune via cross-validation. The proposed model, equation \eqref{eq2}, has $p$ $\lambda$'s decided by weights $\bm{\alpha}$, $\bm{\lambda} = (\lambda_1,\lambda_2,\dots,\lambda_p) = e^{\bm{Z\alpha}}$, it is impossible to tune them. Instead, we estimate the weights $\bm{\alpha}$ first to get the values of $\bm{\lambda}$. With known $\bm{\lambda}$, we can fit the model via coordinate descent.
+
+\subsubsection{Empirical Bayes objective function for estimation of $\bm{\alpha}$} \label{laplace}
+We need an objective function to optimize $\bm{\alpha}$. Since the regularized regression has a natural Bayesian  interpretation, we apply empirical Bayes estimation of hyper-parameters in random effects model, which is maximizing marginal likelihood in terms of hyper-parameter $\bm{\alpha}$ obtained by integrating out random effects $\bm{\beta}$. Based on the Bayesian elsatic net \citep{li2010bayesian}, equation \eqref{eq2} has the interpretation
+\begin{align}
+    &f(\bm{Y}|\bm{\beta}; \bm{X}) = L(\bm{\beta}) \label{eq3}, \\
+    &\pi(\beta_j; \bm{\alpha}) \propto exp\left\{ -\lambda_j\left[\frac{1}{2}(1-c)\beta_j^2 + c|\beta_j|\right] \right\}. \label{eq4}
+\end{align}
+With the likelihood \eqref{eq3} and prior distribution \eqref{eq4}, we construct the joint distribution of $\bm{Y}$ and $\bm{\beta}$, and integrate out $\bm{\beta}$, so to get the marginal likelihood of $\bm{Y}$,
+\begin{align*}
+\ln f(\bm{Y};\bm{\alpha}) &= \int_{\bm{\beta}\in\mathbb{R}^p} \ln f(\bm{Y}, \bm{\beta};\bm{\alpha}) d\bm{\beta} \\
+&= \int_{\bm{\beta}\in\mathbb{R}^p} \left[\ln f(\bm{Y}|\bm{\beta};\bm{X})+\ln \pi(\bm{\beta};\bm{\alpha})\right]d\bm{\beta} \\
+&= \int_{\bm{\beta}\in\mathbb{R}^p} \left\{ \sum_{l=1}^{m}\left[\sum_{i\in D_l}\bm{x}_i^T\bm{\beta}-d_l\ln(\sum_{i\in R_l} e^{\bm{x}_i^T\bm{\beta}})\right] - \sum_{j=1}^{p} \lambda_j\left[\frac{1}{2}(1-c)\beta_j^2 + c|\beta_j|\right]+ \text{const} \right\} d\bm{\beta}
+\end{align*} 
+This integral does not have a closed form expression because the elastic net prior is not a conjugate prior for the likelihood. We propose two approximation methods: first approximate the elastic net prior to a normal prior, then apply Laplace approximation. To approximate the elastic net prior, we follow Zeng et al. (2021) (reference),  
+\begin{equation}
+    \pi(\beta_j; \bm{\alpha}) = N(0, \frac{2}{2\lambda_j(1-c)+c^2\lambda_j^2}). \label{eq5}
+\end{equation}
+Equation \eqref{eq5} gives a similar variance to that of the elastic net prior. The joint distribution, $\ln f(\bm{Y}, \bm{\beta};\bm{\alpha})$, then takes the form 
+\begin{equation} \label{eq6}
+\begin{aligned}
+    &\ln f(\bm{Y}, \bm{\beta};\bm{\alpha}) = \sum_{l=1}^{m}\left[\sum_{i\in D_l}\bm{x}_i^T\bm{\beta}-d_l\ln(\sum_{i\in R_l} e^{\bm{x}_i^T\bm{\beta}})\right] - \sum_{j=1}^{p} \frac{1}{2}v_j\beta_j^2 + \text{const}, \\
+    &v_j = \frac{2\lambda_j(1-c)+c^2\lambda_j^2}{2}.
+\end{aligned}
+\end{equation}
+This is essentially a ridge regularized Cox regression with customized penalty vector. 
+For Laplace approximation of the marginal likelihood/model evidence, we elaborate the details. Consider a Taylor series of $\ln f(\bm{Y}, \bm{\beta};\bm{\alpha})$ at the stationary point $\widetilde{\bm{\beta}}$, where $\nabla \ln f(\bm{Y}, \widetilde{\bm{\beta}};\bm{\alpha})=0$,
+$$ \ln f(\bm{Y}, \bm{\beta};\bm{\alpha}) \approx \ln f(\bm{Y}, \widetilde{\bm{\beta}};\bm{\alpha}) - \frac{1}{2}(\bm{\beta}-\widetilde{\bm{\beta}})^T\bm{H}(\bm{\beta}-\widetilde{\bm{\beta}}). $$
+$\widetilde{\bm{\beta}}$ is the solution of a ridge regularized Cox regression as already stated, it can be computed using \textbf{R} language \emph{glmnet} package \citep{simon2011regularization}, with known $\bm{\alpha}$. $\bm{H}$ is the Hessian matrix,
+\begin{align*}
+    \bm{H} &= - \nabla\nabla \ln f(\bm{Y}, \bm{\beta};\bm{\alpha})|_{\bm{\beta}=\widetilde{\bm{\beta}}} \\
+    & \approx \bm{X}^T\bm{W}\bm{X} + \bm{V}
+\end{align*}
+where $\bm{V} = \text{diag}[v_1,\dots,v_p]$, $\bm{W}$ is a diagonal matrix with elements 
+$$ \bm{W}_{ii} = \sum_{l\in C_i}\frac{d_le^{\bm{x}_i^T\bm{\beta}}}{\sum_{k\in R_l}e^{\bm{x}_k^T\bm{\beta}}} - \sum_{l\in C_i}\frac{d_l(e^{\bm{x}_i^T\bm{\beta}})^2}{(\sum_{k\in R_l}e^{\bm{x}_k^T\bm{\beta}})^2}. $$ 
+The Hessian is an approximation because $W$ is in fact a full matrix with high computational cost. We only use diagonal elements to speed up computation without much loss of accuracy. For greater details, refer to Shen en al. (2001) (reference).
+Now that we see $f(\bm{Y}, \bm{\beta};\bm{\alpha})$'s Taylor approximation has a multivariate normal form with mean $\widetilde{\bm{\beta}}$, variance $\bm{H}^{-1}$, integrating out $\bm{\beta}$ returns the normalizing constant.
+\begin{equation} \label{eq7}
+\begin{aligned}
+    -\ln{f(\bm{Y};\bm{\alpha})} &\approx -\ln f(\bm{Y}|\widetilde{\bm{\beta}};\bm{X}) - \ln \pi(\widetilde{\bm{\beta}};\bm{\alpha}) - \frac{p}{2}\ln{2\pi} + \frac{1}{2}\ln{|\bm{H}|} \\
+    &= -\ln{|\bm{V}|} + \widetilde{\bm{\beta}}^T\bm{V}\widetilde{\bm{\beta}} + \ln{|\bm{H}|} + \text{const}
+\end{aligned}
+\end{equation}
+The approximate negative log marginal likelihood, equation \eqref{eq7}, is the objective function we are going to minimize with respect to $\bm{\alpha}$.
+
+\subsubsection{Objective function optimization} \label{DCA}
+The objective function, equation \eqref{eq7}, is nonconvex. In particular, it can decomposed as difference of two convex functions. $g(\bm{\alpha}):=-\ln{|\bm{V}|} + \widetilde{\beta_j}^T\bm{V}\widetilde{\beta_j}$ is convex in $\bm{\alpha}$, where as $h(\bm{\alpha}):=\ln{|\bm{H}|}$ is concave. This makes it a proper candidate to apply difference of convex functions algorithm (DCA) \citep{le2015dc}. The principle idea of DCA is to approximate the nonconvex objective function by a sequence of convex ones: at each iteration of the sequence, approximate the concave part by its affine majorization, i.e., the supporting hyperplane obtained by calculating its gradient, or subgradients if not differentiable, and minimize the resulting convex approximation. Note that it is also an application of majorization-minimization algorithm \citep{hunter2004tutorial}. The affine approximation of the concave part is the majorization step, which forms a surface lying above the objective function, and is tangent to it, i.e, at the current estimation of the target parameter, the majorization equals to the objective function. This ensures the majorization is a tight upperbound for the objective. Minimizing the convex upperbound is the minimization step. The DCA algorithm for the marginal likelihood, $-\ln{f(\bm{Y};\bm{\alpha})}$:
+\begin{enumerate}
+    \item Initialize $\bm{\alpha}$ with $\widetilde{\bm{\alpha}} \in \mathbb{R}^q$.
+    \item Majorization: 
+    \begin{itemize}
+        \item calculate the gradient at current estimation $\widetilde{\bm{\alpha}}$,
+    $$\bm{\theta}= \nabla_{\bm{\alpha}} \ln{|\bm{H}|} = \text{diag}[\bm{H}^{-1}]$$ 
+        \item form the convex upperbound,
+        \begin{align*}
+        u(\bm{\alpha})&=+g(\bm{\alpha})+ h(\widetilde{\bm{\alpha}}) + \bm{\theta}^T(\bm{\alpha}-\widetilde{\bm{\alpha}}) \\
+        &=-\ln{|\bm{V}|} + \widetilde{\bm{\beta}}^T\bm{V}\widetilde{\bm{\beta}}+\bm{\theta}^T\bm{\alpha}+\text{const}
+        \end{align*}
+    \end{itemize}
+    \item Minimization: $\hat{\bm{\alpha}}=\underset{\bm{\alpha}}{\operatorname{\argmin}} \left\{u(\bm{\alpha})\right\}$.
+    \item Set $\widetilde{\bm{\alpha}} = \hat{\bm{\alpha}}$.
+    \item Repeat step 2-4 until convergence of $\hat{\bm{\alpha}}$.
+\end{enumerate}
+The minimization of $u(\bm{\alpha})$ can be processed with standard first order method like gradient descent, or second order method like Newton-Raphson. We show the gradient and Hessian here,
+\begin{align*}
+    &\nabla_{\bm{\alpha}} u(\bm{\alpha}) = \bm{Z}^T\left[(-\frac{1}{\bm{v}}+\widetilde{\bm{\beta}}^2+\bm{\theta})((1-c)\bm{\lambda}+c^2\bm{\lambda}^2)\right],\\
+    &\nabla\nabla_{\bm{\alpha}} u(\bm{\alpha}) = \bm{Z}^T \text{diag}\left[\frac{\bm{\lambda}^2}{\bm{v}^2}(1-c+c^2\bm{\lambda})^2+(-\frac{1}{\bm{v}}+\widetilde{\bm{\beta}}^2+\bm{\theta})\bm{\lambda}(1-c+2c^2\bm{\lambda})\right]\bm{Z}.
+\end{align*}
+
+\subsection{Summary}
+We incorporate the meta-features into the penalty parameter of regularized Cox proportional hazards model, as a log-linear function, to give each feature a unique penalty parameter depending on the meta-features. We then apply Bayesian interpretation of regularized regression to obtain the marginal likelihood function, as the objective function to optimize with respect to the introduced meta-feature weights $\bm{\alpha}$, thereby estimating the customized penalty parameter vector $\bm{\lambda}$. The nonconvex objective function can be decomposed to a difference of two convex functions, which can be solved with difference of convex functions algorithm. With estimated $\bm{\alpha}$, we can plug values of penalty parameters into the regularized Cox regression. The model fitting procedure is
+\begin{enumerate}
+    \item Initialize $\bm{\alpha}$ with $\widetilde{\bm{\alpha}}$.
+    \item Repeat, until convergence of $\hat{\bm{\alpha}}$.
+    \begin{enumerate}
+        \item Laplace approximation of marginal likelihood with known $\widetilde{\bm{\alpha}}$, section \ref{laplace},
+        \begin{itemize}
+            \item Approximate the elastic net prior with a normal prior, equation \eqref{eq6},
+            \item Calculate $\widetilde{\bm{\beta}}$ and $\bm{H}$.
+        \end{itemize}
+        \item Optimize Laplace approximation of marginal likelihood, equation \eqref{eq7}, get solution $\hat{\bm{\alpha}}$, with DCA described in section \ref{DCA}.
+        \item Set $\widetilde{\bm{\alpha}} = \hat{\bm{\alpha}}$.
+    \end{enumerate}
+    \item Calculate customized penalty vector $\bm{\lambda}=e^{\bm{Z}\hat{\bm{\alpha}}}$.
+    \item Fit regularized Cox regression, equation \eqref{eq2}, with $\bm{\lambda}$.
+    
+\end{enumerate}
+
+\section{Simulations}
+\label{sec:simu}
+
+\section{Applications}
+\label{sec:appl}
+
+\section{Discussion}
+\label{sec:conc}
+
+
+\bigskip
+%\begin{center}
+%{\large\bf SUPPLEMENTAL MATERIALS}
+%\end{center}
+
+%\begin{description}
+
+%\item[Title:] Brief description. (file type)
+
+%\item[R-package for  MYNEW routine:] R-package ÒMYNEWÓ containing code to perform the diagnostic methods described in the article. The package also contains all datasets used as examples in the article. (GNU zipped tar file)
+
+%\item[HIV data set:] Data set used in the illustration of MYNEW method in Section~ 3.2. (.txt file)
+
+%\end{description}
+
+\bibliography{citation}
+
+\end{document} 
